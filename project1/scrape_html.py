@@ -1,6 +1,14 @@
 from bs4 import BeautifulSoup as bs
 import os, sys, logging, string, glob
 import json
+import re
+
+def clean_text(text_as_list):
+    text_as_string = " ".join(text_as_list)
+    text_as_string = text_as_string.encode("utf8").translate(None,'=@&$/%?<>,[]{}()*.0123456789:;-\n\'"_').lower()
+    text_as_string = re.sub(' +',' ',text_as_string)
+
+    return text_as_string
 
 def parse_page(input_page_as_tuple):
     filename,page = input_page_as_tuple
@@ -12,9 +20,9 @@ def parse_page(input_page_as_tuple):
     doc = {
             "id": urlid, 
             "text":parse_text(soup),
-            "title":parse_title(soup ),
-            "links":parse_links(soup),
-            "images":parse_images(soup),
+            #"title":parse_title(soup ),
+            #"links":parse_links(soup),
+            #"images":parse_images(soup),
            }
 
     return doc
@@ -28,13 +36,20 @@ def parse_text(soup):
             - could soup.get_text() instead but the output is more noisy """
     textdata = ['']
 
+    for tag in soup.find_all("div", {"class":"text"}):
+        try:
+           textdata.append(tag.text.encode('ascii','ignore').strip())
+        except Exception:
+           continue
+
     for text in soup.find_all('p'):
         try:
             textdata.append(text.text.encode('ascii','ignore').strip())
         except Exception:
             continue
 
-    return filter(None,textdata)
+    textdata = filter(None,textdata)
+    return clean_text(textdata)
 
 def parse_title(soup):
     """ parameters:
@@ -86,11 +101,11 @@ def parse_images(soup):
     return filter(None,imagesdata)
 
 def main(argv):
-    inFolder = "/user/alexeys/KaggleDato/1/"
-    outputDirectory =" /home/alexeys/BigDataCourse/project1/"
+    inFolder = "/scratch/network/alexeys/BigDataCourse/web_dataset/2/"
+    outputDirectory = os.environ.get('PWD')
 
     json_array = []
-    fIn = glob.glob( inFolder + '/*999*raw*') #[:100]
+    fIn = glob.glob( inFolder+'/*txt')
     print len(fIn)
 
     for filename in fIn:
@@ -98,8 +113,7 @@ def main(argv):
         doc = parse_page((filename,f))
         json_array.append(doc)
 
-    #out_file = open(os.path.join(outputDirectory, 'chunk.json'),"w")
-    out_file = open("/home/alexeys/BigDataCourse/project1/chunk.json","w")
+    out_file = open(outputDirectory+"/chunk.json","w")
     for entry in json_array:
         json.dump(entry, out_file)
         out_file.write('\n')
